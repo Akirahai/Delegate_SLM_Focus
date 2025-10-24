@@ -1,0 +1,62 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# OS files
+.DS_Store
+
+# Environment variables
+.env
+
+# Logs & checkpoints
+logs/
+checkpoints/
+
+# Hugging Face / Transformers cache
+.hf_cache/
+transformers_cache/
+
+# === Add these for your project ===
+
+# Experiment results
+results_*/
+*.json
+
+# Generated datasets
+gsm8k_test.csv
+*_test.csv
+
+# Demo recordings
+*.mp4
+*.mov
+*.avi
+*.gif
+demo_*.svg
+demo_*.html
+
+# Model weights (if downloaded locally)
+models/
+*.bin
+*.safetensors
+
+# Backup folders
+archive/
+backup/
+*_backup/
+
+# Google Drive mount (Colab)
+drive/
