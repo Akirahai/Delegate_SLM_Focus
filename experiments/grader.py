@@ -365,8 +365,13 @@ def _test_math_equal():
     # gt = '34x+45y-20z+100=0'
 
     # pred = '\\frac{100}{3}'
-    # gt = '33.3'
+    # gt = '33.333'
 
+    # pred = "\\$1.00"
+    # gt = "1"
+
+    pred = "x^5 - x^4 + x^3 - x^2 + x - 1"
+    gt = "x^3 + x^5 - x^4 - x^2 + x - 1"
     # pred = '\\begin{pmatrix}0.290243531202435\\\\0.196008371385084\\\\-0.186381278538813\\end{pmatrix}'
     # gt = '(\\begin{pmatrix}0.29\\\\0.196\\\\-0.186\\\\\\end{pmatrix})'
 
@@ -385,8 +390,8 @@ def _test_math_equal():
     # pred = "(0.6,2.6667]"
     # gt = "(\\frac{3}{5},\\frac{8}{3}]"
 
-    gt = "x+2n+1"
-    pred = "x+1"
+    # gt = "x+2n+1"
+    # pred = "x+1"
 
     print(math_equal(pred, gt, timeout=True))
 

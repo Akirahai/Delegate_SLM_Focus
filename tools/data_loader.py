@@ -2,129 +2,95 @@ import json
 import os
 import re
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pandas as pd
 
 from datasets import load_dataset
 
+# Get project root but don't change working directory
+PROJECT_ROOT = Path(__file__).parent.parent
+
 
 def remove_calc_annotations(text):
     return re.sub(r"<<.*?>>", "", text)
 
-
-def read_gsm8k(train = False):
-    dataset = load_dataset("gsm8k", 'main')
-    train_input = dataset.data['train']['question'].to_pylist()
-    train_output = dataset.data['train']['answer'].to_pylist()
-    train_output = [remove_calc_annotations(i) for i in train_output]
-    train_output = [i.replace("#### ", "") for i in train_output]
-
-    test_input = dataset.data['test']['question'].to_pylist()
-    test_output = dataset.data['test']['answer'].to_pylist()
-    test_output = [remove_calc_annotations(i) for i in test_output]
-    test_output = [i.replace("#### ", "") for i in test_output]
+def extract_gsm8k_answer(answer_text: str) -> str:
+    """
+    Extract the final numeric answer from GSM8K answer format.
+    GSM8K answers end with #### followed by the numeric answer.
     
+    Example:
+        "She has 5 apples. #### 5" -> "5"
+    """
+    # GSM8K format: answer is after ####
+    match = re.search(r'####\s*(-?\d+(?:,\d{3})*(?:\.\d+)?)', answer_text)
+    if match:
+        # Remove commas from numbers like "1,000"
+        return match.group(1).replace(',', '')
+    
+    # Fallback: extract last number
+    numbers = re.findall(r'-?\d+(?:\.\d+)?', answer_text)
+    return numbers[-1] if numbers else ""
 
-    if train == True:
-        return train_input, train_output
-    else:
-        return test_input, test_output
-
-def read_r2ata():
-    df = pd.read_csv("datasets/r2ata.csv")
-    df = df[df['dataset'] == 'gsm8k']
-    df['Edited'] = df['Edited'].apply(lambda x: x.replace("Question: ", "").replace("\nAnswer: Let's think step by step.", ""))
-    # df['Target'] = "The answer is " + df['Target']
-    df['Target'] = df['Target'].apply(lambda x: x.strip())
-
-    r2ata_input = df['Edited'].tolist()
-    r2ata_output = df['Target'].tolist()
-
-    return r2ata_input, r2ata_output
-
-def read_svamp():
-    df = pd.read_json('datasets/SVAMP.json')
-    df['problem'] = df['Body'] + " " + df['Question']
-    # df['cot_output'] = "The answer is " + df['Answer'].apply(str)
-    df['Answer'] = df['Answer'].apply(str)
-
-    svamp_input = df['problem'].tolist()
-    svamp_output = df['Answer'].tolist()
-
-    return svamp_input, svamp_output
-
-
-def read_asdiv():
-    # Parse the XML file
-    tree = ET.parse('datasets/ASDiv.xml')  # Replace 'file.xml' with the path to your XML file
-    root = tree.getroot()
-
-    # Extract data
-    data = []
-    for problem in root.find('ProblemSet'):
-        problem_id = problem.attrib.get('ID')
-        grade = problem.attrib.get('Grade')
-        source = problem.attrib.get('Source')
-        body = problem.find('Body').text
-        question = problem.find('Question').text
-        solution_type = problem.find('Solution-Type').text
-        answer = problem.find('Answer').text
-        formula = problem.find('Formula').text
-
-        data.append(
-            {
-                'Problem ID': problem_id,
-                'Grade': grade,
-                'Source': source,
-                'Body': body,
-                'Question': question,
-                'Solution Type': solution_type,
-                'Answer': answer,
-                'Formula': formula,
-            }
-        )
-
-    # Convert to pandas DataFrame
-    df = pd.DataFrame(data)
-    df = df[df['Answer'].apply(lambda x: str(x).find(';') == -1)]  # remove problems asking multiple answers
-
-    df['problem'] = df['Body'] + " " + df['Question']
-    # df['Answer'] = "The answer is " + df['Answer'].apply(lambda x: str(x).split()[0])
-
-    asdiv_input = df['problem'].tolist()
-
-    asdiv_output = df['Answer'].tolist()
-
-    return asdiv_input, asdiv_output
+def read_gsm8k(n_samples=None, random_seed=42):
+    dataset = load_dataset("gsm8k", "main")
+    
+    test_input = dataset["test"]["question"]
+    test_output_raw = dataset["test"]["answer"]
+    test_output_clean = [extract_gsm8k_answer(ans) for ans in test_output_raw]
+    problem_ids = [f"prob_{i}" for i in range(len(test_input))]
+    # Convert to pandas
+    df = pd.DataFrame({
+        "problem_id": problem_ids,
+        "problem": test_input,
+        "solution": test_output_raw,
+        "answer": test_output_clean
+    })
+    
+    df["subject"] = "Arithmetic"
+    
+    # Optional sampling
+    if n_samples and n_samples < len(df):
+        df = df.sample(n=n_samples, random_state=random_seed).reset_index(drop=True)
+    
+    print(f"Loaded {len(df)} problems from GSM8K (test split)")
+    return df
 
 
-
-def read_math_500(train = False):
+def read_math_500(train = False, n_samples=None, random_seed=42):
     dataset = load_dataset("HuggingFaceH4/MATH-500")
-    train_input = dataset.data['train']['question'].to_pylist()
-    train_output = dataset.data['train']['answer'].to_pylist()
-    train_output = [remove_calc_annotations(i) for i in train_output]
-    train_output = [i.replace("#### ", "The answer is ") for i in train_output]
 
-    test_input = dataset.data['test']['question'].to_pylist()
-    test_output = dataset.data['test']['answer'].to_pylist()
-    test_output = [remove_calc_annotations(i) for i in test_output]
-    test_output = [i.replace("#### ", "The answer is ") for i in test_output]
+    test_input = dataset.data['test']['problem'].to_pylist()
+    test_output_sol = dataset.data['test']['solution'].to_pylist()
+    test_output_ans = dataset.data['test']['answer'].to_pylist()
+    test_subject  = dataset.data['test']['subject'].to_pylist()
+    # Construct problem_ids:
+    problem_ids = [f"prob_{i}" for i in range(len(test_input))]
     
+    # Convert to pandas
+    df = pd.DataFrame({
+        "problem_id": problem_ids,
+        "problem": test_input,
+        "solution": test_output_sol,
+        "answer": test_output_ans,
+        "subject": test_subject
 
-    if train == True:
-        return train_input, train_output
-    else:
-        return test_input, test_output
+    })
+    
+    
+    # Optional sampling
+    if n_samples and n_samples < len(df):
+        df = df.sample(n=n_samples, random_state=random_seed).reset_index(drop=True)
+    
+    print(f"Loaded {len(df)} problems from GSM8K (test split)")
+    return df
 
 
-def read_data(task, train=False):
+
+def read_data(task, n_samples=None, random_seed=42):
     if task == 'gsm8k':
-        return read_gsm8k(train)
-    elif task == 'r2ata':
-        return read_r2ata()
-    elif task == 'svamp':
-        return read_svamp()
-    elif task == 'asdiv':
-        return read_asdiv()
+        return read_gsm8k(n_samples=n_samples, random_seed=random_seed)
+    elif task == 'math_500':
+        return read_math_500(n_samples=n_samples, random_seed=random_seed)
     

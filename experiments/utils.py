@@ -6,6 +6,7 @@ import re
 import json
 from typing import Dict, List
 from dataclasses import dataclass, asdict
+import regex
 
 # ---------------------------
 # Data Structures
@@ -18,6 +19,7 @@ class ProblemResult:
     question: str
     ground_truth: str
     prediction: str
+    extract_answer: str
     is_correct: bool
     latency_total: float
     latency_llm: float = 0.0
@@ -77,11 +79,42 @@ def extract_ground_truth(answer: str) -> str:
 # ---------------------------
 # New Answer Extraction with boxed format
 # ---------------------------
-def extract_boxed(text):
-    # match = re.search(r"\\boxed\{(.*?)\}", text)
-    # return match.group(1).strip() if match else ""
-    matches = re.findall(r"\\boxed\{(.*?)\}", text)
-    return matches[-1].strip() if matches else ""
+def extracted_box(text: str) -> str:
+    """
+    Extract the last complete LaTeX expression inside \boxed{...},
+    correctly handling nested braces and avoiding regex recursion.
+    """
+    last_box_start = text.rfind(r"\boxed{")
+    if last_box_start == -1:
+        return ""
+
+    i = last_box_start + len(r"\boxed{")
+    depth = 1
+    content = []
+    while i < len(text) and depth > 0:
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        if depth > 0:
+            content.append(text[i])
+        i += 1
+    
+    result = "".join(content).strip()
+
+    # --- optional cleanup: remove redundant outer braces like {{8}} or {8} ---
+    while result.startswith("{") and result.endswith("}"):
+        inner = result[1:-1].strip()
+        # stop if braces inside are unbalanced
+        if inner.count("{") != inner.count("}"):
+            break
+        result = inner
+
+    return result
+
+
 
 def len_extract_boxed(text):
     matches = re.findall(r"\\boxed\{(.*?)\}", text)

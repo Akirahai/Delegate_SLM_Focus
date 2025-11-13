@@ -3,6 +3,7 @@ torch>=2.0.0
 transformers>=4.35.0
 openai>=1.0.0
 openai-agents>=0.3.0
+openai-agents[litellm]
 
 # Data Processing
 pandas>=2.0.0
@@ -14,6 +15,10 @@ python-dotenv>=1.0.0
 # Visualization (optional, for analyze_results.py)
 matplotlib>=3.7.0
 seaborn>=0.12.0
+
+# GPTQ for Quantized Models
+optimum
+autogptq
 
 # Note: Install with:
 # pip install -r requirements.txt

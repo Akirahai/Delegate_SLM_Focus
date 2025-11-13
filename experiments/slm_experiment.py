@@ -10,8 +10,7 @@ import json
 from dataclasses import dataclass, asdict
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from experiments.utils import check_answer, extract_answer
-from experiments.utils import extract_boxed, len_extract_boxed
+from utils import extracted_box, len_extract_boxed
 from grader import math_equal
 
 @dataclass
@@ -113,7 +112,7 @@ async def run_slm_experiment(test_df: pd.DataFrame, output_file: str, max_tokens
         prediction, input_tokens, output_tokens = await agent.run(prompt)
         t_end = time.time()
 
-        extracted_answer = extract_answer(prediction)
+        extracted_answer = extracted_box(prediction)
 
         is_correct = math_equal(extracted_answer, row["answer"], timeout=True)
         latency = t_end - t_start

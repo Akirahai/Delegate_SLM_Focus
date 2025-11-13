@@ -4,8 +4,9 @@ Unified comparison runner for GSM8K experiments
 Runs LLM baseline, Router, and SLM on the SAME samples
 
 Usage:
-    python run_comparison.py --samples 10 --seed 123
-    python run_comparison.py --samples 200 --seed 123
+    python run_comparison.py --gpus 0 1 --samples 10 --seed 123
+    python run_comparison.py --gpus 0 1 --samples 200 --seed 123
+    python run_comparison.py --gpus 0 1 --samples 10 --seed 123 --skip-llm --skip-router --model Qwen/Qwen2.5-Math-1.5B-Instruct --data math_500 --max-tokens 1024
 """
 
 import asyncio
@@ -14,24 +15,51 @@ import pandas as pd
 import json
 from datetime import datetime
 from pathlib import Path
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+import sys
+
+sys.path.append(str(Path(__file__).parent.parent))
 
 from tools.gsm8k_loader import load_gsm8k_as_df
-
+from tools.data_loader import read_data
+import os
 
 async def main():
     parser = argparse.ArgumentParser(description='Run GSM8K comparison experiments')
+    parser.add_argument('--gpus', type=int, nargs='+', default=[0], help='List of gpus to use')
     parser.add_argument('--samples', type=int, default=10, help='Number of samples')
     parser.add_argument('--seed', type=int, default=123, help='Random seed')
     parser.add_argument('--skip-llm', action='store_true', help='Skip LLM baseline')
     parser.add_argument('--skip-router', action='store_true', help='Skip Router baseline')
     parser.add_argument('--skip-slm', action='store_true', help='Skip SLM baseline')
+    parser.add_argument('--model', type=str, default="Qwen/Qwen2.5-Math-1.5B-Instruct", help='SLM Model ID')
     parser.add_argument('--max-tokens', type=int, default=512, help='Max tokens')
+    parser.add_argument('--data', type=str, default='gsm8k', help='Dataset to use (gsm8k, math_500)')
+    parser.add_argument('--output-dir', type=str, default=None, help='Output directory (optional)')
+
     args = parser.parse_args()
     
+    GPU_list = ','.join(map(str, args.gpus))
+    
+    
+    os.environ['CUDA_DEVICE_ORDER'] =  'PCI_BUS_ID'
+    os.environ['CUDA_VISIBLE_DEVICES']=  GPU_list
+    # Remove WORLD_SIZE to avoid distributed training issues
+    # os.environ["WORLD_SIZE"] = "1"  # This was causing the error
+    print(f"Using GPU: {GPU_list}")
+
+
     # Create output directory
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_dir = Path(f"results_comparison_{args.samples}samples_{timestamp}")
-    output_dir.mkdir(exist_ok=True)
+    model_name = args.model.split('/')[-1]
+    if args.output_dir is None:
+        output_dir = Path(f"results_{model_name}_{args.samples}samples_{args.data}_path")
+        output_dir.mkdir(exist_ok=True)
+    else:
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
     
     print("\n" + "="*80)
     print(f"GSM8K COMPARISON EXPERIMENT")
@@ -39,13 +67,15 @@ async def main():
     print("="*80)
     
     # Load the SAME samples for all experiments
-    print(f"\n📊 Loading {args.samples} GSM8K samples (seed={args.seed})...")
-    test_df = load_gsm8k_as_df(
-        split='test',
-        n_samples=args.samples,
-        random_seed=args.seed
-    )
-    
+    print(f"\n📊 Loading {args.samples} {args.data} samples (seed={args.seed})...")
+    # test_df = load_gsm8k_as_df(
+    #     split='test',
+    #     n_samples=args.samples,
+    #     random_seed=args.seed
+    # )
+    test_df = read_data(args.data, n_samples=args.samples, random_seed=args.seed)
+
+
     # Save the sampled dataset for reference
     sample_file = output_dir / "samples.csv"
     test_df.to_csv(sample_file, index=False)
@@ -57,11 +87,12 @@ async def main():
     from experiments.slm_experiment import run_slm_experiment
     
     results = {}
-    
+
+
     # 1. LLM Baseline (GPT-4o)
     if not args.skip_llm:
         print("\n" + "="*80)
-        print("EXPERIMENT 1: LLM BASELINE (GPT-4o alone)")
+        print("EXPERIMENT 1: LLM BASELINE (Gemini alone)")
         print("="*80)
         llm_file = output_dir / "results_llm.json"
         results['llm'] = await run_llm_experiment(
@@ -78,8 +109,7 @@ async def main():
         router_file = output_dir / "results_router.json"
         results['router'] = await run_router_experiment(
             test_df.copy(),
-            str(router_file),
-            max_tokens=args.max_tokens
+            str(router_file)
         )
     
     # 3. SLM Baseline (Qwen alone) - Optional
@@ -91,9 +121,10 @@ async def main():
         results['slm'] = await run_slm_experiment(
             test_df.copy(),
             str(slm_file),
-            max_tokens=args.max_tokens
+            max_tokens=args.max_tokens,
+            model_id=args.model
         )
-    
+
     # Generate comparison report
     print("\n" + "="*80)
     print("COMPARISON SUMMARY")
@@ -155,15 +186,6 @@ async def main():
                 print(f"{formatted:<15}", end='')
                 comparison['results'].setdefault(exp, {})[key] = value
         print()
-    
-    # Add router-specific metrics
-    if 'router' in results:
-        print(f"\n{'Router Metrics':<25}")
-        print("-" * 80)
-        print(f"{'Avg Tool Calls':<25}{results['router'].get('avg_tool_calls', 0):.2f}")
-        print(f"{'Total Tool Calls':<25}{results['router'].get('total_tool_calls', 0)}")
-        print(f"{'Avg SLM Latency (s)':<25}{results['router'].get('avg_slm_latency', 0):.3f}")
-        print(f"{'Total SLM Latency (s)':<25}{results['router'].get('total_slm_latency', 0):.2f}")
     
     # Save comparison
     comparison_file = output_dir / "comparison.json"
