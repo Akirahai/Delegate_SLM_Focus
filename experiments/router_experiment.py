@@ -173,7 +173,9 @@ async def run_router_experiment(test_df: pd.DataFrame,
             
             existing = next((r for r in results if r.problem_id == problem_id), None)
 
-            if existing and existing.reason in  ["STOP"]:
+            # For now, only skip if reason is STOP or hand_off_model is "SLM Math Experts"
+            # Pre-proceed all llm handled problems for re-evaluation
+            if existing and (existing.reason in  ["STOP"] or existing.hand_off_model == "SLM Math Experts"):
                 print(f"Skipping already processed problem {problem_id} with {existing.reason}")
 
                 total_planning_input += existing.planning_input_tokens
@@ -186,9 +188,9 @@ async def run_router_experiment(test_df: pd.DataFrame,
                 print(f"⏩ Skipping already processed problem {problem_id}")
                 continue
 
-            if existing and existing.reason not in ["STOP"]:
+            if existing and (existing.reason not in ["STOP"] and existing.hand_off_model != "SLM Math Experts"):
                 print(f"Re-processing problem {problem_id} due to previous reason: {existing.reason}")
-                # Remove previous entry
+                # Remove previous entry if they exist
                 results = [r for r in results if r.problem_id != problem_id]
 
             prompt = f"Problem: {row['problem']}"

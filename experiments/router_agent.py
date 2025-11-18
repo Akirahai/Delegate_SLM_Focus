@@ -48,9 +48,9 @@ def initialize_all_agents(SLM_MODEL, LLM_MODEL, ORCHESTRATOR_MODEL):
     instructions=LLM_INSTRUCTION,
     model=LitellmModel(model=LLM_MODEL, api_key=GEMINI_API_KEY),
     model_settings=ModelSettings(
-        max_tokens=6000,
+        max_tokens=2048,
         parallel_tool_calls=False,
-        reasoning={"effort": "medium"},
+        reasoning={"effort": "low"},
         include_usage=True,
     )
     )
