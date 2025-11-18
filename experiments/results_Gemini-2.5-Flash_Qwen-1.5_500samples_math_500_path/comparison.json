@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "samples": 500,
+    "seed": 0,
+    "max_tokens": 16000,
+    "timestamp": "20251113_063859"
+  },
+  "results": {
+    "router": {
+      "accuracy": 0.852,
+      "avg_latency": 11.367335057735444,
+      "total_latency": 5683.667528867722,
+      "avg_input_tokens": 162.522,
+      "avg_output_tokens": 1486.86,
+      "total_input_tokens": 81261,
+      "total_output_tokens": 743430
+    }
+  }
+}

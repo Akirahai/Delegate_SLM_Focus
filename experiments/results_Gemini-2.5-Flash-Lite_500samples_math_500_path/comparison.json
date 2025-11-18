@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "samples": 500,
+    "seed": 123,
+    "max_tokens": 16384,
+    "timestamp": "20251101_080518"
+  },
+  "results": {
+    "llm": {
+      "accuracy": 0.856,
+      "avg_latency": 3.7168978776931763,
+      "total_latency": 1858.4489388465881,
+      "avg_input_tokens": 118.888,
+      "avg_output_tokens": 1367.53,
+      "total_input_tokens": 59444,
+      "total_output_tokens": 683765
+    }
+  }
+}
