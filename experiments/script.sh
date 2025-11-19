@@ -10,20 +10,20 @@
 #   "Gemini/Gemini-2.5-Flash"
 # )
 
-GPUS="4 5"
+GPUS="5"
 SAMPLES=500
 SEED=0
 DATASET="math_500"
 # DATASET="gsm8k"
-MAX_TOKENS=16000
+MAX_TOKENS=8000
 
 # Flags
-SKIP_LLM=true
-SKIP_ROUTER=false
+SKIP_LLM=false
+SKIP_ROUTER=true
 SKIP_SLM=true
 
 # Run on this output_direction
-output_dir="results_Gemini-2.5-Flash_Qwen-1.5_${SAMPLES}samples_${DATASET}_path"
+output_dir="results_Gemini-2.5-Flash_New_${SAMPLES}samples_${DATASET}_path"
 
 
 

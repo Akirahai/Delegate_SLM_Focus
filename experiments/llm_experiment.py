@@ -27,8 +27,8 @@ from grader import math_equal
 from dataclasses import dataclass, asdict
 
 # MODEL_NAME = "gemini-2.5-flash-lite"
-MODEL_NAME = "gemini-2.5-pro"
-# MODEL_NAME = "gemini-2.5-flash"
+# MODEL_NAME = "gemini-2.5-pro"
+MODEL_NAME = "gemini-2.5-flash"
 @dataclass
 class ProblemResult:
     problem_id: str
